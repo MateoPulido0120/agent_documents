@@ -111,9 +111,6 @@ def process_data(bytes_data, llm_model, embed_model):
     except Exception as e:
             logger.error("rocesamiento de archivo incorrecto")
 
-def process_data_test():
-     pass
-
 
 def parameterize_agent(resume_global_content, object_retriever, llm_model, memory):
     def extract_relevant_content(question: str) -> list:
@@ -129,6 +126,8 @@ def parameterize_agent(resume_global_content, object_retriever, llm_model, memor
             - Eres un experto en {resume_global_content}.
             - Su objetivo es responder todas las preguntas del usuario hasta que tenga total claridad sobre el tema.
             - Utilice la herramienta 'extract_relevant_content_tool' para extraer contenido relevante para responder las preguntas.
+            - NO DEBE INVENTAR NI ASUMIR RESPUESTAS.
+            - NO DEBE RESPONDER PREGUNTAS QUE NO ESTEN RELACIONADS AL TEMA.
         """
         agent = ReActAgent.from_tools([extract_relevant_content_tool], llm=llm_model, context=prompt_context, 
                                     verbose=True, max_iterations=10, memory=memory)
@@ -140,3 +139,26 @@ def parameterize_agent(resume_global_content, object_retriever, llm_model, memor
             logger.error("Parametrización de agente incorrecta")
              
 
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=10))
+def generate_evaluation(query, real_response, generate_response):
+    try:
+        start_time = time.time()
+        response = st.session_state['gemini_llm'].generate_content(
+            f"""Realiza un analisis comparativo de la pregunta: {query}
+            Y lo que deberia ser la respuesta: {real_response}
+            Con la respuesta generada: {generate_response}
+            - Valida si las respuestas (real y generada) son similares o responden a lo mismo contextualmente, retorna un bool.
+            - Retorna un analisis de tu decision en formato str.
+            usando el esquema JSON:
+            {{
+                "validacion": bool,
+                "analisis": str
+            }}:
+            """).text
+        
+        response = json.loads(response)
+        logger.info(f"Generación de evalución segun consulta correcto, tiempo: {time.time()-start_time} s")
+        return response["validacion"], response["analisis"]
+
+    except Exception as e:
+            logger.error("Generación de respuesta segun consulta incorrecto")

@@ -3,3 +3,5 @@
 *.pdf
 
 docs/
+
+static/app_logs.log

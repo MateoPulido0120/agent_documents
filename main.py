@@ -5,9 +5,10 @@ from llama_index.llms.openai import OpenAI
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.core.memory import ChatMemoryBuffer
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
-from utils.agent import process_data, parameterize_agent, process_data_test
+from utils.agent import process_data, parameterize_agent, generate_evaluation
 from utils.logging_config import logger
 import time
+import matplotlib.pyplot as plt
 
 def initialize_session():
     if "gemini_llm" not in st.session_state:
@@ -49,8 +50,15 @@ def initialize_session():
     if 'resume_global_content_test' not in st.session_state:
         st.session_state['resume_global_content_test'] = None
 
-    if 'test_file' not in st.session_state:
-        st.session_state['test_file'] = None
+    if 'test_file_1' not in st.session_state:
+        st.session_state['test_file_1'] = None
+    
+    if 'test_file_2' not in st.session_state:
+        st.session_state['test_file_2'] = None
+
+    if 'agent_test' not in st.session_state:
+        st.session_state['agent_test'] = None
+
 
 
 if __name__ == "__main__":
@@ -123,6 +131,7 @@ if __name__ == "__main__":
 
     with tab2:
         with st.expander("Instrucciones de Uso"):
+
             st.markdown("""
             ## 1. Carga de Archivos
 
@@ -137,27 +146,44 @@ if __name__ == "__main__":
             ### b) Archivo Excel
 
             - **Formato**: Archivo en formato `.xlsx`.
-            - **Estructura**: El archivo debe contener exactamente **tres columnas** con la siguiente estructura:
-            1. **Preguntas**: Contiene preguntas relacionadas con el documento PDF cargado.
-            2. **Respuestas**: Contiene las respuestas esperadas para cada pregunta.
-            3. **Validez (Booleano)**: Contiene valores `True` o `False` que indican si la pregunta y respuesta corresponden al contexto del documento.
+            - **Estructura**: El archivo debe contener exactamente **dos hojas** con **dos columnas** cada una con la siguiente estructura:
+            Hoja 1, el nombre de la hoja debe ser TEST1
+                1. **PREGUNTA**: Contiene preguntas relacionadas con el documento PDF cargado.
+                2. **RESPUESTA**: Contiene las respuestas esperadas para cada pregunta.
+                        
+            Hoja 2, el nombre de la hoja debe ser TEST2
+                1. **KEYWORD**: Contiene preguntas relacionadas con el documento PDF cargado.
+                2. **CONTEXTO**: Contiene las respuestas esperadas para cada pregunta.
             - **Ejemplo de formato:**
             """)
 
-            data = {
-                "Pregunta": [
+            data_1 = {
+                "PREGUNTA": [
                     "¿Cuál es el tema principal del documento?",
                     "¿Cuál es la capital de Francia?"
                 ],
-                "Respuesta": [
+                "RESPUESTA": [
                     "Inteligencia Artificial",
                     "París"
                 ],
-                "Validez": [True, False]
             }
 
-            df = pd.DataFrame(data)
-            st.table(df)
+            data_2 = {
+                "KEYWORD": [
+                    "UBI",
+                    "POC"
+                ],
+                "CONTEXTO": [
+                    "Modelo de seguro que se adapta al consumidor",
+                    "Prueba de concepto"
+                ],
+            }
+
+            df_1 = pd.DataFrame(data_1)
+            st.table(df_1)
+
+            df_2 = pd.DataFrame(data_2)
+            st.table(df_2)
 
             st.markdown("""
             ## 2. Procesamiento de los Datos
@@ -166,7 +192,6 @@ if __name__ == "__main__":
 
             1. La aplicación procesará el contenido del **PDF**.
             2. Comparará las preguntas y respuestas proporcionadas en el **Excel** con la información extraída.
-            3. Evaluará el rendimiento del agente basándose en los valores booleanos de la tercera columna.
 
             ## 3. Resultados
 
@@ -174,6 +199,12 @@ if __name__ == "__main__":
             - Se mostrarán estadísticas sobre la precisión del agente en relación con el contexto del documento.
             """)
         
+        with st.expander("Logs"):
+            with open("static/app_logs.log", "r") as log_file:
+                logs = log_file.read()
+
+            st.text_area("Registro de Logs", logs, height=300, key="area2")
+
         uploaded_file_test = st.file_uploader("Elige un archivo PDF", accept_multiple_files=False, type="PDF", key="file_test_agent")
         if uploaded_file_test is not None:
             if st.session_state['object_retriever_test'] is None:
@@ -182,15 +213,83 @@ if __name__ == "__main__":
                     st.session_state['resume_global_content_test'], st.session_state['object_retriever_test']  = process_data(bytes_data, 
                                                                                                                           st.session_state['gemini_llm'],
                                                                                                                           st.session_state['embed_model'])
+                   
+
+                    if st.session_state['resume_global_content_test'] is not None and st.session_state['object_retriever_test'] is not None:
+                        st.session_state['agent_test'] = parameterize_agent(st.session_state['resume_global_content_test'], 
+                                                                            st.session_state['object_retriever_test'],
+                                                                            st.session_state['openai_llm'],
+                                                                            st.session_state['memory'])
+                   
                     st.toast('Procesado!', icon='✅')
 
 
-        uploaded_file_answer = st.file_uploader("Elige un archivo XLS de 3 columnas", accept_multiple_files=False, type="xls", key="file_test")
-        if uploaded_file_answer is not None:
-            if st.session_state['test_file'] is None:
-                bytes_data = uploaded_file_answer.getvalue()
-                with st.spinner(text="Procesando archivo de test..."):
-                    st.session_state['test_file'] = process_data_test(bytes_data, 
-                                                                st.session_state['gemini_llm'],
-                                                                st.session_state['embed_model'])
-                    st.toast('Procesado!', icon='✅')
+            uploaded_file_answer = st.file_uploader("Elige un archivo XLS de 3 columnas", accept_multiple_files=False, type="xlsx", key="file_test")
+            if uploaded_file_answer is not None:
+                if st.session_state['test_file_1'] is None:
+                    st.session_state['test_file_1'] = pd.read_excel(uploaded_file_answer, sheet_name="TEST1")
+                    st.session_state['test_file_2'] = pd.read_excel(uploaded_file_answer, sheet_name="TEST2")
+
+                    with st.spinner(text="Evaluando TEST 1..."):
+
+                        st.session_state['test_file_1']["RESPUESTA_AGENTE"] = None
+                        st.session_state['test_file_1']["VALIDACION"] = None
+                        st.session_state['test_file_1']["ANALISIS"] = None
+
+                        start_time = time.time()
+
+                        for i in range(len(st.session_state['test_file_1'])):
+                            query = st.session_state['test_file_1'].loc[i, "PREGUNTA"]
+                            real_response = st.session_state['test_file_1'].loc[i, "RESPUESTA"]
+                            generate_response = st.session_state['agent_test'].chat(query)
+
+                            validate, analyze = generate_evaluation(query, real_response, generate_response)
+                            
+                            st.session_state['test_file_1'].at[i, "RESPUESTA_AGENTE"] = generate_response
+                            st.session_state['test_file_1'].at[i, "VALIDACION"] = validate
+                            st.session_state['test_file_1'].at[i, "ANALISIS"] = analyze
+
+                        st.toast('Analizado!', icon='✅')
+                        logger.info(f"Análisis de las respuestas por parte del agente correcta (TEST1), tiempo: {time.time()-start_time} s")
+
+                    with st.spinner(text="Evaluando TEST 2..."):
+
+                        st.session_state['test_file_2']["RESPUESTA_AGENTE"] = None
+                        st.session_state['test_file_2']["VALIDACION"] = None
+                        st.session_state['test_file_2']["ANALISIS"] = None
+
+                        start_time = time.time()
+                        for i in range(len(st.session_state['test_file_2'])):
+                            query = st.session_state['test_file_2'].loc[i, "KEYWORD"]
+                            real_response = st.session_state['test_file_2'].loc[i, "CONTEXTO"]
+                            generate_response = st.session_state['agent_test'].chat(query)
+
+                            validate, analyze = generate_evaluation(query, real_response, generate_response)
+                            
+                            st.session_state['test_file_2'].at[i, "RESPUESTA_AGENTE"] = generate_response
+                            st.session_state['test_file_2'].at[i, "VALIDACION"] = validate
+                            st.session_state['test_file_2'].at[i, "ANALISIS"] = analyze
+
+                        st.toast('Analizado!', icon='✅')
+                        logger.info(f"Análisis de las respuestas por parte del agente correcta (TEST2), tiempo: {time.time()-start_time} s")
+                    
+                    st.write(st.session_state['test_file_1'])
+                    st.write(st.session_state['test_file_2'])
+
+
+                    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))  
+                    ax1.pie([round(st.session_state['test_file_1']["VALIDACION"].mean() * 100, 0),
+                             round(100 - st.session_state['test_file_1']["VALIDACION"].mean() * 100, 0)], 
+                            ["Correcto", "Incorrecto"], autopct='%1.1f%%',
+                            shadow=True, startangle=90)
+                    ax1.set_title("TEST 1")
+                    ax1.axis('equal')
+
+                    ax2.pie([round(st.session_state['test_file_2']["VALIDACION"].mean() * 100, 0),
+                             round(100 - st.session_state['test_file_2']["VALIDACION"].mean() * 100, 0)], 
+                            ["Correcto", "Incorrecto"], autopct='%1.1f%%',
+                            shadow=True, startangle=90)
+                    ax2.set_title("TEST 2")
+                    ax2.axis('equal')
+                    st.pyplot(fig)
+
