@@ -272,27 +272,24 @@ if __name__ == "__main__":
 
                         st.toast('Analizado!', icon='✅')
                         logger.info(f"Análisis de las respuestas por parte del agente correcta (TEST2), tiempo: {time.time()-start_time} s")
-                    
-                    st.session_state['test_file_1']["VALIDACION"] = st.session_state['test_file_1']["VALIDACION"].map({"True": True, "False": False})
-                    st.session_state['test_file_2']["VALIDACION"] = st.session_state['test_file_2']["VALIDACION"].map({"True": True, "False": False})
-
+       
                     st.write(st.session_state['test_file_1'])
                     st.write(st.session_state['test_file_2'])
 
 
-                    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))  
-                    ax1.pie([round(st.session_state['test_file_1']["VALIDACION"].mean() * 100, 0),
-                             round(100 - st.session_state['test_file_1']["VALIDACION"].mean() * 100, 0)], 
-                            ["Correcto", "Incorrecto"], autopct='%1.1f%%',
-                            shadow=True, startangle=90)
-                    ax1.set_title("TEST 1")
-                    ax1.axis('equal')
+                    # fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))  
+                    # ax1.pie([round(st.session_state['test_file_1']["VALIDACION"].mean() * 100, 0),
+                    #          round(100 - st.session_state['test_file_1']["VALIDACION"].mean() * 100, 0)], 
+                    #         ["Correcto", "Incorrecto"], autopct='%1.1f%%',
+                    #         shadow=True, startangle=90)
+                    # ax1.set_title("TEST 1")
+                    # ax1.axis('equal')
 
-                    ax2.pie([round(st.session_state['test_file_2']["VALIDACION"].mean() * 100, 0),
-                             round(100 - st.session_state['test_file_2']["VALIDACION"].mean() * 100, 0)], 
-                            ["Correcto", "Incorrecto"], autopct='%1.1f%%',
-                            shadow=True, startangle=90)
-                    ax2.set_title("TEST 2")
-                    ax2.axis('equal')
-                    st.pyplot(fig)
+                    # ax2.pie([round(st.session_state['test_file_2']["VALIDACION"].mean() * 100, 0),
+                    #          round(100 - st.session_state['test_file_2']["VALIDACION"].mean() * 100, 0)], 
+                    #         ["Correcto", "Incorrecto"], autopct='%1.1f%%',
+                    #         shadow=True, startangle=90)
+                    # ax2.set_title("TEST 2")
+                    # ax2.axis('equal')
+                    # st.pyplot(fig)
 
