@@ -273,6 +273,9 @@ if __name__ == "__main__":
                         st.toast('Analizado!', icon='✅')
                         logger.info(f"Análisis de las respuestas por parte del agente correcta (TEST2), tiempo: {time.time()-start_time} s")
                     
+                    st.session_state['test_file_1']["VALIDACION"] = st.session_state['test_file_1']["VALIDACION"].map({"True": True, "False": False})
+                    st.session_state['test_file_2']["VALIDACION"] = st.session_state['test_file_2']["VALIDACION"].map({"True": True, "False": False})
+
                     st.write(st.session_state['test_file_1'])
                     st.write(st.session_state['test_file_2'])
 
