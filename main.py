@@ -9,6 +9,7 @@ from utils.agent import process_data, parameterize_agent, generate_evaluation
 from utils.logging_config import logger
 import time
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 def initialize_session():
     if "gemini_llm" not in st.session_state:
@@ -230,27 +231,27 @@ if __name__ == "__main__":
                     st.session_state['test_file_1'] = pd.read_excel(uploaded_file_answer, sheet_name="TEST1")
                     st.session_state['test_file_2'] = pd.read_excel(uploaded_file_answer, sheet_name="TEST2")
 
-                    with st.spinner(text="Evaluando TEST 1..."):
+                    # with st.spinner(text="Evaluando TEST 1..."):
 
-                        st.session_state['test_file_1']["RESPUESTA_AGENTE"] = None
-                        st.session_state['test_file_1']["VALIDACION"] = None
-                        st.session_state['test_file_1']["ANALISIS"] = None
+                    #     st.session_state['test_file_1']["RESPUESTA_AGENTE"] = None
+                    #     st.session_state['test_file_1']["VALIDACION"] = None
+                    #     st.session_state['test_file_1']["ANALISIS"] = None
 
-                        start_time = time.time()
+                    #     start_time = time.time()
 
-                        for i in range(len(st.session_state['test_file_1'])):
-                            query = st.session_state['test_file_1'].loc[i, "PREGUNTA"]
-                            real_response = st.session_state['test_file_1'].loc[i, "RESPUESTA"]
-                            generate_response = st.session_state['agent_test'].chat(query)
+                    #     for i in range(len(st.session_state['test_file_1'])):
+                    #         query = st.session_state['test_file_1'].loc[i, "PREGUNTA"]
+                    #         real_response = st.session_state['test_file_1'].loc[i, "RESPUESTA"]
+                    #         generate_response = st.session_state['agent_test'].chat(query)
 
-                            validate, analyze = generate_evaluation(query, real_response, generate_response)
+                    #         validate, analyze = generate_evaluation(query, real_response, generate_response)
                             
-                            st.session_state['test_file_1'].at[i, "RESPUESTA_AGENTE"] = generate_response
-                            st.session_state['test_file_1'].at[i, "VALIDACION"] = validate
-                            st.session_state['test_file_1'].at[i, "ANALISIS"] = analyze
+                    #         st.session_state['test_file_1'].at[i, "RESPUESTA_AGENTE"] = generate_response
+                    #         st.session_state['test_file_1'].at[i, "VALIDACION"] = validate
+                    #         st.session_state['test_file_1'].at[i, "ANALISIS"] = analyze
 
-                        st.toast('Analizado!', icon='✅')
-                        logger.info(f"Análisis de las respuestas por parte del agente correcta (TEST1), tiempo: {time.time()-start_time} s")
+                    #     st.toast('Analizado!', icon='✅')
+                    #     logger.info(f"Análisis de las respuestas por parte del agente correcta (TEST1), tiempo: {time.time()-start_time} s")
 
                     with st.spinner(text="Evaluando TEST 2..."):
 
@@ -276,20 +277,37 @@ if __name__ == "__main__":
                     st.write(st.session_state['test_file_1'])
                     st.write(st.session_state['test_file_2'])
 
+                    sns.set_style("darkgrid")
+                    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
 
-                    # fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))  
-                    # ax1.pie([round(st.session_state['test_file_1']["VALIDACION"].mean() * 100, 0),
-                    #          round(100 - st.session_state['test_file_1']["VALIDACION"].mean() * 100, 0)], 
-                    #         ["Correcto", "Incorrecto"], autopct='%1.1f%%',
-                    #         shadow=True, startangle=90)
-                    # ax1.set_title("TEST 1")
-                    # ax1.axis('equal')
+                    if 'VALIDACION' in st.session_state['test_file_1'].columns:
+                        st.write(f"TEST 1 EM (Exact Match): {st.session_state['test_file_1']['VALIDACION'].sum()}")
+                        labels = ["True (Válidos)", "False (No Válidos)"]
+                        colors = sns.color_palette("pastel")[:2]
+                        sizes = [round(st.session_state['test_file_1']["VALIDACION"].mean() * 100, 0),
+                                round(100 - st.session_state['test_file_2']["VALIDACION"].mean() * 100, 0)]
 
-                    # ax2.pie([round(st.session_state['test_file_2']["VALIDACION"].mean() * 100, 0),
-                    #          round(100 - st.session_state['test_file_2']["VALIDACION"].mean() * 100, 0)], 
-                    #         ["Correcto", "Incorrecto"], autopct='%1.1f%%',
-                    #         shadow=True, startangle=90)
-                    # ax2.set_title("TEST 2")
-                    # ax2.axis('equal')
-                    # st.pyplot(fig)
+                        ax1.pie(sizes, labels=labels, autopct='%1.1f%%', shadow=True, startangle=90, colors=colors, wedgeprops={'edgecolor': 'black'})
+                        ax1.set_title("TEST 1", fontsize=14, fontweight="bold")
+                        ax1.axis('equal')
+                    else:
+                        st.write("No se logrón evaluar correctamente el TEST 1")
+                    
+                    if 'VALIDACION' in st.session_state['test_file_2'].columns:
+                        st.write(f"TEST 2 EM (Exact Match): {st.session_state['test_file_2']['VALIDACION'].sum()}")
+                        labels = ["True (Válidos)", "False (No Válidos)"]  # Etiquetas para los datos
+                        colors = sns.color_palette("pastel")[:2]
+                        sizes = [round(st.session_state['test_file_2']["VALIDACION"].mean() * 100, 0),
+                                round(100 - st.session_state['test_file_2']["VALIDACION"].mean() * 100, 0)]
+
+                        ax2.pie(sizes, labels=labels, autopct='%1.1f%%', shadow=True, startangle=90, colors=colors, wedgeprops={'edgecolor': 'black'})
+                        ax2.set_title("TEST 2", fontsize=14, fontweight="bold")
+                        ax2.axis('equal')
+
+                    else:
+                        st.write("No se logrón evaluar correctamente el TEST 2")
+
+
+                    if 'VALIDACION' in st.session_state['test_file_1'].columns or 'VALIDACION' in st.session_state['test_file_2'].columns:
+                        st.pyplot(fig)
 
